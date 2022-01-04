@@ -87,13 +87,18 @@
 
 # COMMAND ----------
 
+# MAGIC %sql
+# MAGIC drop database if exists lakehouse_tpcdi_bronze cascade
 
+# COMMAND ----------
+
+dbutils.fs.ls("/tmp/tpc-di/10000/")
 
 # COMMAND ----------
 
 # MAGIC %sql 
 # MAGIC 
-# MAGIC create database if not exists lakehouse_tpcdi_10; 
+# MAGIC create database if not exists lakehouse_tpcdi_bronze; 
 # MAGIC set spark.databricks.delta.optimize.maxFileSize = 33554432; 
 
 # COMMAND ----------
@@ -111,9 +116,9 @@
 # COMMAND ----------
 
 # MAGIC %sql 
-# MAGIC drop table if exists lakehouse_tpcdi_10.customermgmt_raw; 
+# MAGIC drop table if exists lakehouse_tpcdi_bronze.customermgmt_raw; 
 # MAGIC 
-# MAGIC create table lakehouse_tpcdi_10.customermgmt_raw
+# MAGIC create table lakehouse_tpcdi_bronze.customermgmt_raw
 # MAGIC using com.databricks.spark.xml
 # MAGIC OPTIONS (path "dbfs:/tmp/tpc-di/10/Batch1/CustomerMgmt.xml", rowTag "TPCDI:Action")
 
@@ -121,13 +126,13 @@
 
 # MAGIC %sql
 # MAGIC 
-# MAGIC select * from lakehouse_tpcdi_10.customermgmt_raw
+# MAGIC select * from lakehouse_tpcdi_bronze.customermgmt_raw
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC 
-# MAGIC Create or replace table lakehouse_tpcdi_10.customer_management
+# MAGIC Create or replace table lakehouse_tpcdi_bronze.customer_management
 # MAGIC as 
 # MAGIC select
 # MAGIC   _ActionTS, _ActionType, 
@@ -158,7 +163,7 @@
 # MAGIC   Customer._C_TIER,
 # MAGIC   Customer._VALUE Customer_Value
 # MAGIC from
-# MAGIC   lakehouse_tpcdi_10.customermgmt_raw
+# MAGIC   lakehouse_tpcdi_bronze.customermgmt_raw
 # MAGIC   
 # MAGIC   
 
@@ -166,14 +171,14 @@
 
 # MAGIC %sql
 # MAGIC 
-# MAGIC select * from lakehouse_tpcdi_10.customer_management
+# MAGIC select * from lakehouse_tpcdi_bronze.customer_management
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC 
-# MAGIC OPTIMIZE lakehouse_tpcdi_10.customer_management ZORDER BY CA_B_ID; 
-# MAGIC ANALYZE TABLE lakehouse_tpcdi_10.customer_management COMPUTE STATISTICS FOR ALL COLUMNS;
+# MAGIC OPTIMIZE lakehouse_tpcdi_bronze.customer_management ZORDER BY CA_B_ID; 
+# MAGIC ANALYZE TABLE lakehouse_tpcdi_bronze.customer_management COMPUTE STATISTICS FOR ALL COLUMNS;
 
 # COMMAND ----------
 
@@ -277,42 +282,42 @@ finwire_fin_df.createOrReplaceTempView("finwire_fin")
 
 # MAGIC %sql
 # MAGIC 
-# MAGIC create or replace table lakehouse_tpcdi_10.finwire_cmp_bronze as select * from finwire_cmp;
-# MAGIC create or replace table lakehouse_tpcdi_10.finwire_sec_bronze as select * from finwire_sec;
-# MAGIC create or replace table lakehouse_tpcdi_10.finwire_fin_bronze as select * from finwire_cmp;
+# MAGIC create or replace table lakehouse_tpcdi_bronze.finwire_cmp_bronze as select * from finwire_cmp;
+# MAGIC create or replace table lakehouse_tpcdi_bronze.finwire_sec_bronze as select * from finwire_sec;
+# MAGIC create or replace table lakehouse_tpcdi_bronze.finwire_fin_bronze as select * from finwire_cmp;
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC 
-# MAGIC OPTIMIZE lakehouse_tpcdi_10.finwire_cmp_bronze ZORDER BY CIK; 
-# MAGIC ANALYZE TABLE lakehouse_tpcdi_10.finwire_cmp_bronze COMPUTE STATISTICS FOR ALL COLUMNS;
+# MAGIC OPTIMIZE lakehouse_tpcdi_bronze.finwire_cmp_bronze ZORDER BY CIK; 
+# MAGIC ANALYZE TABLE lakehouse_tpcdi_bronze.finwire_cmp_bronze COMPUTE STATISTICS FOR ALL COLUMNS;
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC 
-# MAGIC OPTIMIZE lakehouse_tpcdi_10.finwire_sec_bronze ZORDER BY CNameOrCIK; 
-# MAGIC ANALYZE TABLE lakehouse_tpcdi_10.finwire_sec_bronze COMPUTE STATISTICS FOR ALL COLUMNS;
+# MAGIC OPTIMIZE lakehouse_tpcdi_bronze.finwire_sec_bronze ZORDER BY CNameOrCIK; 
+# MAGIC ANALYZE TABLE lakehouse_tpcdi_bronze.finwire_sec_bronze COMPUTE STATISTICS FOR ALL COLUMNS;
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC 
-# MAGIC OPTIMIZE lakehouse_tpcdi_10.finwire_fin_bronze ZORDER BY CIK; 
-# MAGIC ANALYZE TABLE lakehouse_tpcdi_10.finwire_fin_bronze COMPUTE STATISTICS FOR ALL COLUMNS;
+# MAGIC OPTIMIZE lakehouse_tpcdi_bronze.finwire_fin_bronze ZORDER BY CIK; 
+# MAGIC ANALYZE TABLE lakehouse_tpcdi_bronze.finwire_fin_bronze COMPUTE STATISTICS FOR ALL COLUMNS;
 
 # COMMAND ----------
 
 # MAGIC %sql 
 # MAGIC 
-# MAGIC drop table if exists lakehouse_tpcdi_10.prospect_bronze
+# MAGIC drop table if exists lakehouse_tpcdi_bronze.prospect_bronze
 
 # COMMAND ----------
 
 # MAGIC %sql 
 # MAGIC 
-# MAGIC CREATE OR REPLACE TABLE lakehouse_tpcdi_10.prospect_bronze
+# MAGIC CREATE OR REPLACE TABLE lakehouse_tpcdi_bronze.prospect_bronze
 # MAGIC ( AgencyID string COMMENT 'Unique identifier from agency', 
 # MAGIC LastName string COMMENT 'Last name', 
 # MAGIC FirstName string COMMENT 'First name', 
@@ -347,7 +352,12 @@ spark.read.format("csv") \
 
 # COMMAND ----------
 
-tableSchema = spark.sql(f"select * from lakehouse_tpcdi_10.prospect_bronze limit 1").schema
+tableSchema = spark.sql(f"select * from lakehouse_tpcdi_bronze.prospect_bronze limit 1").schema
+
+# COMMAND ----------
+
+dbutils.fs.ls("dbfs:/tmp/tpc-di/10/Batch1/")
+dbutils.fs.cp("dbfs:/tmp/tpc-di/10000/Batch1/Prospect.csv","dbfs:/tmp/tpc-di/10000/Prospects/Prospect.csv")
 
 # COMMAND ----------
 
@@ -356,23 +366,23 @@ spark.readStream.format("cloudFiles") \
 .option("cloudFiles.inferColumnTypes", True) \
 .option("cloudFiles.format", "CSV") \
 .option("sep", ",") \
-.load("dbfs:/tmp/tpc-di/10/Batch*/Prospect.csv") \
+.load("dbfs:/tmp/tpc-di/10/Prospects/") \
 .writeStream \
 .trigger(once=True) \
 .format("delta") \
 .option("mergeSchema", "true") \
 .option("checkpointLocation", "/dbfs/tmp/tpc-di/10/checkpoints/prospect/4") \
-.start("dbfs:/user/hive/warehouse/lakehouse_tpcdi_10.db/prospect_bronze") 
+.table("lakehouse_tpcdi_bronze.prospect_bronze")
 
 # COMMAND ----------
 
-df=spark.table("lakehouse_tpcdi_10.prospect_bronze")
+df=spark.table("lakehouse_tpcdi_bronze.prospect_bronze")
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC 
-# MAGIC select * from lakehouse_tpcdi_10.prospect_bronze;
+# MAGIC select * from lakehouse_tpcdi_bronze.prospect_bronze;
 
 # COMMAND ----------
 
@@ -402,7 +412,7 @@ df=spark.table("lakehouse_tpcdi_10.prospect_bronze")
 
 # MAGIC %sql
 # MAGIC 
-# MAGIC CREATE OR REPLACE TABLE lakehouse_tpcdi_10.daily_market (
+# MAGIC CREATE OR REPLACE TABLE lakehouse_tpcdi_bronze.daily_market (
 # MAGIC     dm_date DATE COMMENT 'Date of last completed trading day.',
 # MAGIC     dm_s_symb string  COMMENT 'Security symbol of the security',
 # MAGIC     dm_close NUMERIC(15,2)  COMMENT 'Closing price of the security on this day.',
@@ -413,7 +423,7 @@ df=spark.table("lakehouse_tpcdi_10.prospect_bronze")
 
 # COMMAND ----------
 
-tableSchema = spark.sql(f"select * from lakehouse_tpcdi_10.daily_market limit 1").schema
+tableSchema = spark.sql(f"select * from lakehouse_tpcdi_bronze.daily_market limit 1").schema
 
 # COMMAND ----------
 
@@ -428,7 +438,7 @@ spark.readStream.format("cloudFiles") \
 .format("delta") \
 .option("mergeSchema", "true") \
 .option("checkpointLocation", "/dbfs/tmp/tpc-di/10/checkpoints/dailymarket/2") \
-.start("dbfs:/user/hive/warehouse/lakehouse_tpcdi_10.db/daily_market") 
+.start("dbfs:/user/hive/warehouse/lakehouse_tpcdi_bronze.db/daily_market") 
 
 # COMMAND ----------
 
@@ -449,15 +459,15 @@ spark.read.format("csv") \
 
 # MAGIC %sql 
 # MAGIC 
-# MAGIC insert into lakehouse_tpcdi_10.daily_market
+# MAGIC insert into lakehouse_tpcdi_bronze.daily_market
 # MAGIC select * from daily_market_raw
 
 # COMMAND ----------
 
 # MAGIC %sql 
 # MAGIC 
-# MAGIC OPTIMIZE lakehouse_tpcdi_10.daily_market ZORDER BY dm_date; 
-# MAGIC ANALYZE TABLE lakehouse_tpcdi_10.daily_market COMPUTE STATISTICS FOR ALL COLUMNS;
+# MAGIC OPTIMIZE lakehouse_tpcdi_bronze.daily_market ZORDER BY dm_date; 
+# MAGIC ANALYZE TABLE lakehouse_tpcdi_bronze.daily_market COMPUTE STATISTICS FOR ALL COLUMNS;
 
 # COMMAND ----------
 
