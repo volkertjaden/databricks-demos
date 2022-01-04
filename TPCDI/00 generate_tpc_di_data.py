@@ -43,6 +43,15 @@ from pathlib import Path
 
 # COMMAND ----------
 
+upload_path = "dbfs:/FileStore/shared_uploads/volker.tjaden@databricks.com/tpcdi/b580876d_8e4a_4d98_9d80_24d5bb4bb129_tpc_di_tool.zip"
+dbutils.fs.cp (upload_path,"dbfs:/tmp/b4b051ef_a906_426d_9502_dde338910e5a_tpc_di_tool.zip")
+
+# COMMAND ----------
+
+# MAGIC %fs ls /tmp/
+
+# COMMAND ----------
+
 # DBTITLE 1,Verify file exists on DBFS
 if not Path("/dbfs/tmp/b4b051ef_a906_426d_9502_dde338910e5a_tpc_di_tool.zip").is_file():
   raise FileNotFoundError(errno.ENOENT, "TPCDI Generator not found at", filename)
@@ -111,6 +120,10 @@ print(f'***Run the next cell to generate data with Scale Factor={scale_factor} i
 # DBTITLE 1,Verify results
 # `generator_target_path` is a local path, string starting `/dbfs` from it
 dbutils.fs.ls(generator_target_path[len('/dbfs'):])
+
+# COMMAND ----------
+
+display(dbutils.fs.ls('/tmp/tpc-di'))
 
 # COMMAND ----------
 
