@@ -83,16 +83,17 @@
 
 # COMMAND ----------
 
-
+# MAGIC %sql
+# MAGIC show databases
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC drop database if exists lakehouse_tpcdi_bronze cascade
+# MAGIC drop database lakehouse_tpcdi_10000 cascade
 
 # COMMAND ----------
 
-dbutils.fs.ls("/tmp/tpc-di/10000/")
+dbutils.fs.ls("/tmp/tpc-di/")
 
 # COMMAND ----------
 
